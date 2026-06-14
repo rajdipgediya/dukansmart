@@ -13,7 +13,7 @@ export function DashboardLayout() {
       <div
         className={cn(
           "flex flex-col transition-all duration-200",
-          collapsed ? "ml-16" : "ml-60"
+          collapsed ? "ml-14" : "ml-48"
         )}
       >
         <TopNavbar />

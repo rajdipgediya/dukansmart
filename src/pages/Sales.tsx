@@ -1,18 +1,22 @@
 import { useState } from "react";
 import { Search, Plus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { salesData, formatCurrency } from "@/lib/mockData";
+import { formatCurrency } from "@/lib/mockData";
+import { useData } from "@/contexts/DataContext";
 
 const Sales = () => {
+  const { sales } = useData();
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("all");
 
-  const filtered = salesData.filter((s) => {
+  const filtered = sales.filter((s) => {
     const matchSearch = s.customer.toLowerCase().includes(search.toLowerCase()) || s.id.toLowerCase().includes(search.toLowerCase());
     const matchPayment = paymentFilter === "all" || s.paymentType === paymentFilter;
     return matchSearch && matchPayment;
@@ -22,7 +26,9 @@ const Sales = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Sales</h1>
-        <Button><Plus className="mr-2 h-4 w-4" /> Add Sale</Button>
+        <Button onClick={() => navigate("/fast-sale")} className="h-12 text-base font-bold">
+          <Plus className="mr-2 h-5 w-5" /> Add Sale (POS)
+        </Button>
       </div>
 
       <Card>
@@ -58,24 +64,32 @@ const Sales = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((sale) => (
-                <TableRow key={sale.id}>
-                  <TableCell className="font-medium">{sale.id}</TableCell>
-                  <TableCell className="text-muted-foreground">{sale.date}</TableCell>
-                  <TableCell>{sale.customer}</TableCell>
-                  <TableCell>
-                    <Badge variant={sale.paymentType === "Credit" ? "destructive" : "secondary"}>
-                      {sale.paymentType}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right font-medium">{formatCurrency(sale.amount)}</TableCell>
-                  <TableCell>
-                    <Badge variant={sale.status === "Pending" ? "outline" : "secondary"}>
-                      {sale.status}
-                    </Badge>
+              {filtered.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                    No transactions found.
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                filtered.map((sale) => (
+                  <TableRow key={sale.id}>
+                    <TableCell className="font-medium">{sale.id}</TableCell>
+                    <TableCell className="text-muted-foreground">{sale.date}</TableCell>
+                    <TableCell>{sale.customer}</TableCell>
+                    <TableCell>
+                      <Badge variant={sale.paymentType === "Credit" ? "destructive" : "secondary"}>
+                        {sale.paymentType}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right font-medium">{formatCurrency(sale.amount)}</TableCell>
+                    <TableCell>
+                      <Badge variant={sale.status === "Pending" ? "outline" : "secondary"}>
+                        {sale.status}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>

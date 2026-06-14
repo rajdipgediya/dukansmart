@@ -2,23 +2,80 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { IndianRupee, TrendingUp, CreditCard, Banknote, Smartphone, Clock, Send } from "lucide-react";
-import { dailySummary, formatCurrency } from "@/lib/mockData";
+import { formatCurrency } from "@/lib/mockData";
+import { useData } from "@/contexts/DataContext";
 import { toast } from "sonner";
 
-const stats = [
-  { label: "Total Sales", value: dailySummary.totalSales, icon: IndianRupee, color: "text-primary" },
-  { label: "Total Profit", value: dailySummary.totalProfit, icon: TrendingUp, color: "text-[hsl(var(--success))]" },
-  { label: "Credit Given", value: dailySummary.creditGiven, icon: CreditCard, color: "text-[hsl(var(--warning))]" },
-  { label: "Cash Received", value: dailySummary.cashReceived, icon: Banknote, color: "text-[hsl(var(--success))]" },
-  { label: "UPI Received", value: dailySummary.upiReceived, icon: Smartphone, color: "text-primary" },
-  { label: "Pending Collection", value: dailySummary.pendingCollection, icon: Clock, color: "text-destructive" },
-];
-
 const DailySummary = () => {
+  const { sales, expenses, credits, inventory } = useData();
+
   const now = new Date();
   const dateStr = now.toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+  const todayStr = now.toISOString().split("T")[0];
 
-  const summaryText = `🏪 *DukaanSmart Daily Summary*\n📅 ${dateStr}\n\n💰 Total Sales: ${formatCurrency(dailySummary.totalSales)}\n📈 Profit: ${formatCurrency(dailySummary.totalProfit)}\n📋 Credit Given: ${formatCurrency(dailySummary.creditGiven)}\n💵 Cash: ${formatCurrency(dailySummary.cashReceived)}\n📱 UPI: ${formatCurrency(dailySummary.upiReceived)}\n⏳ Pending: ${formatCurrency(dailySummary.pendingCollection)}\n💸 Expenses: ${formatCurrency(dailySummary.totalExpenses)}\n✅ Real Profit: ${formatCurrency(dailySummary.realProfit)}`;
+  // Calculations based on live context data
+  const todaySalesList = sales.filter((s) => s.date === todayStr);
+
+  // New sales made today (non-recovery)
+  const newSalesToday = todaySalesList.filter((s) => !s.id.startsWith("REC-"));
+  const totalSalesVal = newSalesToday.reduce((sum, s) => sum + s.amount, 0);
+
+  // Credit given today (new credit sales)
+  const creditGivenVal = newSalesToday.filter((s) => s.paymentType === "Credit").reduce((sum, s) => sum + s.amount, 0);
+
+  // Cash received today: Cash sales today + Credit recoveries in Cash today
+  const cashSalesVal = newSalesToday.filter((s) => s.paymentType === "Cash").reduce((sum, s) => sum + s.amount, 0);
+  const cashRecoveriesVal = todaySalesList.filter((s) => s.id.startsWith("REC-") && s.paymentType === "Cash").reduce((sum, s) => sum + s.amount, 0);
+  const cashReceivedVal = cashSalesVal + cashRecoveriesVal;
+
+  // UPI received today: UPI sales today + Credit recoveries in UPI today
+  const upiSalesVal = newSalesToday.filter((s) => s.paymentType === "UPI").reduce((sum, s) => sum + s.amount, 0);
+  const upiRecoveriesVal = todaySalesList.filter((s) => s.id.startsWith("REC-") && s.paymentType === "UPI").reduce((sum, s) => sum + s.amount, 0);
+  const upiReceivedVal = upiSalesVal + upiRecoveriesVal;
+
+  // Total pending collection across all customers
+  const pendingCollectionVal = credits.reduce((sum, c) => sum + c.pending, 0);
+
+  // Total monthly expenses logged
+  const totalExpensesVal = expenses.reduce((sum, e) => sum + e.amount, 0);
+  const dailyExpensesShare = Math.round(totalExpensesVal / 30);
+
+  // Calculate actual profit for today's new sales
+  const calculateTodayProfit = () => {
+    let profit = 0;
+    newSalesToday.forEach((sale) => {
+      if (sale.items && sale.items.length > 0) {
+        sale.items.forEach((saleItem) => {
+          const invItem = inventory.find((i) => i.id === saleItem.id || i.name === saleItem.name);
+          if (invItem) {
+            const itemProfit = (saleItem.price - invItem.purchasePrice) * saleItem.qty;
+            profit += itemProfit;
+          } else {
+            // Fallback: 20% profit margin
+            profit += (saleItem.price * 0.20) * saleItem.qty;
+          }
+        });
+      } else {
+        // Fallback: 20% profit margin
+        profit += sale.amount * 0.20;
+      }
+    });
+    return Math.round(profit);
+  };
+
+  const totalProfitVal = calculateTodayProfit();
+  const realProfitVal = totalProfitVal - dailyExpensesShare;
+
+  const stats = [
+    { label: "Total Sales", value: totalSalesVal, icon: IndianRupee, color: "text-primary" },
+    { label: "Total Profit", value: totalProfitVal, icon: TrendingUp, color: "text-[hsl(var(--success))]" },
+    { label: "Credit Given", value: creditGivenVal, icon: CreditCard, color: "text-[hsl(var(--warning))]" },
+    { label: "Cash Received", value: cashReceivedVal, icon: Banknote, color: "text-[hsl(var(--success))]" },
+    { label: "UPI Received", value: upiReceivedVal, icon: Smartphone, color: "text-primary" },
+    { label: "Pending Collection", value: pendingCollectionVal, icon: Clock, color: "text-destructive" },
+  ];
+
+  const summaryText = `🏪 *DukaanSmart Daily Summary*\n📅 ${dateStr}\n\n💰 Total Sales: ${formatCurrency(totalSalesVal)}\n📈 Profit: ${formatCurrency(totalProfitVal)}\n📋 Credit Given: ${formatCurrency(creditGivenVal)}\n💵 Cash: ${formatCurrency(cashReceivedVal)}\n📱 UPI: ${formatCurrency(upiReceivedVal)}\n⏳ Pending: ${formatCurrency(pendingCollectionVal)}\n💸 Expenses: ${formatCurrency(totalExpensesVal)}\n✅ Real Profit: ${formatCurrency(realProfitVal)}`;
 
   const sendWhatsApp = () => {
     const encoded = encodeURIComponent(summaryText);
@@ -58,17 +115,17 @@ const DailySummary = () => {
       </div>
 
       {/* Real Profit Card */}
-      <Card className="border-2 border-[hsl(var(--success))]">
+      <Card className={realProfitVal >= 0 ? "border-2 border-[hsl(var(--success))]" : "border-2 border-destructive bg-destructive/5"}>
         <CardContent className="flex items-center justify-between p-6">
           <div>
-            <p className="text-sm text-muted-foreground">Real Profit (Sales – Expenses)</p>
-            <p className="text-4xl font-black text-[hsl(var(--success))] tabular-nums">
-              {formatCurrency(dailySummary.realProfit)}
+            <p className="text-sm text-muted-foreground">Real Profit (Sales Profit – Expenses Share)</p>
+            <p className={`text-4xl font-black ${realProfitVal >= 0 ? "text-[hsl(var(--success))]" : "text-destructive"} tabular-nums`}>
+              {formatCurrency(realProfitVal)}
             </p>
           </div>
           <div className="text-right text-sm text-muted-foreground">
-            <p>Expenses today: {formatCurrency(950)}</p>
-            <p>Monthly total: {formatCurrency(dailySummary.totalExpenses)}</p>
+            <p>Daily share of expenses: {formatCurrency(dailyExpensesShare)}</p>
+            <p>Monthly expenses: {formatCurrency(totalExpensesVal)}</p>
           </div>
         </CardContent>
       </Card>

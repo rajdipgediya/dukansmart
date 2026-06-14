@@ -70,6 +70,9 @@ export const creditCustomers = [
 export const categories = ["Grocery", "Dairy", "Snacks", "Cleaning", "Personal Care", "Beverages", "Stationery"];
 
 export const formatCurrency = (amount: number) => {
+  if (amount < 0) {
+    return `-₹${Math.abs(amount).toLocaleString("en-IN")}`;
+  }
   return `₹${amount.toLocaleString("en-IN")}`;
 };
 
