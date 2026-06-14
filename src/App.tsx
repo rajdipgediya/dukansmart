@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { DataProvider } from "@/contexts/DataContext";
 import { DashboardLayout } from "./components/DashboardLayout";
 import Dashboard from "./pages/Dashboard";
 import Sales from "./pages/Sales";
@@ -74,7 +75,9 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <AppRoutes />
+          <DataProvider>
+            <AppRoutes />
+          </DataProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
